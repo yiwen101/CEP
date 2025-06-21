@@ -2,3 +2,7 @@
 /beam_retriever-main
 /results
 /data
+*/__pycache__/*
+
+/benchmark/hotpot/__pycache__
+/benchmark/musr/__pycache__

@@ -1,0 +1,71 @@
+"""
+MuSR Call Functions for CEP Experiments
+"""
+
+import os
+from typing import List, Dict
+from dotenv import load_dotenv
+
+from shared import Call, CallResp, LLMClient, CEPPrompts, CallBuilder
+from shared import model
+from shared.call_methods import (
+    create_baseline_direct_call,
+    create_baseline_cot_call,
+    create_cep_augmentation_call,
+    create_cep_history_call
+)
+
+# Load environment variables
+load_dotenv()
+
+class MusrCallBuilder(CallBuilder):
+    """CallBuilder for MuSR experiments"""
+    
+    def build_calls(self, model: str, domain: str) -> Dict[str, Call]:
+        """Build a map of method names to call functions for a given model and domain"""
+        calls = {}
+        
+        # Baseline methods
+        calls["baseline_direct"] = self.build_wrapper_calls(create_baseline_direct_call(model))
+        calls["baseline_cot"] = self.build_wrapper_calls(create_baseline_cot_call(model))
+        
+        # CEP methods - each category with augmentation and history variants
+        cep_categories = ["understand", "connect", "query", "application", "comprehensive"]
+        cep_prompts = CEPPrompts()
+        
+        for category in cep_categories:
+            # Get number of prompts for this category
+            all_ceps = cep_prompts.get_all_ceps(domain)
+            num_prompts = len(all_ceps.get(category, []))
+            
+            for prompt_index in range(num_prompts):
+                # Get the specific CEP prompt
+                cep_prompt = cep_prompts.get_cep_prompt(category, prompt_index, domain)
+                cep_prompts_array = [cep_prompt]
+                
+                # Add augmentation variant
+                method_name = f"cep_augmentation_{category}"
+                if num_prompts > 1:
+                    method_name += f"_{prompt_index}"
+                calls[method_name] = self.build_wrapper_calls(create_cep_augmentation_call(model, cep_prompts_array))
+                
+                # Add history variant
+                method_name = f"cep_history_{category}"
+                if num_prompts > 1:
+                    method_name += f"_{prompt_index}"
+                calls[method_name] = self.build_wrapper_calls(create_cep_history_call(model, cep_prompts_array))
+        
+        return calls
+    
+    def build_wrapper_calls(self, call: Call) -> Call:
+        """Build a map of method names to call functions for a given model and domain"""
+        def wrapper_call(problem: model.Problem) -> CallResp:
+            resp = call(problem)
+            answer_lower = resp.predicted_answer.lower()
+            if 'answer:' in answer_lower:
+                answer = answer_lower.split('answer:')[-1].strip()
+                resp.predicted_answer = answer
+            else:
+                resp.predicted_answer = "wrong answer"
+            return resp
+        return wrapper_call
