@@ -15,12 +15,13 @@ def create_baseline_direct_call(model: str) -> Call:
     def baseline_direct_call(problem: Problem) -> CallResp:
         """Baseline: Direct question answering without elaboration"""
         messages = [
-            {"role": "user", "content": f"""Context:
-{problem.context}
-
+            {"role": "user", "content": f"""Answer the following question with reference to the context:
 Question: {problem.question}
 
-Please provide your answer:"""}
+Context:
+{problem.context}
+
+Please think step by step and then provide your answer:"""}
         ]
         
         predicted_answer, tokens_used, execution_time = llm_client.call_with_history(messages)
@@ -45,10 +46,11 @@ def create_baseline_cot_call(model: str) -> Call:
     def baseline_cot_call(problem: Problem) -> CallResp:
         """Baseline: Chain-of-Thought reasoning"""
         messages = [
-            {"role": "user", "content": f"""Context:
-{problem.context}
-
+            {"role": "user", "content": f"""Answer the following question with reference to the context:
 Question: {problem.question}
+
+Context:
+{problem.context}
 
 Please think step by step and then provide your answer:"""}
         ]
@@ -83,7 +85,7 @@ def build_elaboration_in_turns(model: str, context: str, ceps: List[str]) -> Ela
 
 Question: {ceps[0]}
 
-Please provide your answer:"""}
+provide your answer:"""}
     ]
     elaboration, tokens, time = llm_client.call_with_history(messages)
     elaborations.append(elaboration)
@@ -125,7 +127,7 @@ def _get_or_create_elaboration(problem: Problem, model: str, cep_prompts: List[s
     return _elaboration_cache[cache_key]
 
 
-def create_cep_augmentation_call(model: str, cep_prompts: List[str]) -> Call:
+def create_cep_augmentation_call(model: str, cep_prompts: List[str], with_cot: bool) -> Call:
     """Create a CEP augmentation call function"""
     llm_client = LLMClient(model)
     
@@ -138,15 +140,14 @@ def create_cep_augmentation_call(model: str, cep_prompts: List[str]) -> Call:
         time_1 = elaboration_data.execution_time
         
         # Step 2: Question answering with elaborated context
-        augmentation_query = f"""Original Context:
-{problem.context}
-
-Elaborated Context:
-{elaboration}
-
+        augmentation_query = f"""Answer the following question with reference to the context:
 Question: {problem.question}
 
-Please provide your answer:"""
+Context:
+{problem.context}
+{elaboration}
+
+{"Please think step by step and then "if with_cot else ""}provide your answer:"""
 
         augmentation_messages = [
             {"role": "user", "content": augmentation_query}
@@ -172,7 +173,7 @@ Please provide your answer:"""
     return cep_augmentation_call
 
 
-def create_cep_history_call(model: str, cep_prompts: List[str]) -> Call:
+def create_cep_history_call(model: str, cep_prompts: List[str], with_cot: bool) -> Call:
     """Create a CEP history call function"""
     llm_client = LLMClient(model)
     
@@ -188,12 +189,13 @@ def create_cep_history_call(model: str, cep_prompts: List[str]) -> Call:
         
         history_messages = elaboration_history.copy()
         history_messages.extend([
-            {"role": "user", "content": f"""Answer the following question:
-
+            {"role": "user", "content": f"""Answer the following question with reference to the context:
 Question: {problem.question}
 
-Please provide your answer:"""}
-        ])
+Context:
+{problem.context}
+
+{"Please think step by step and then "if with_cot else ""}provide your answer:"""}])
 
         predicted_answer, tokens_2, time_2 = llm_client.call_with_history(history_messages)
 

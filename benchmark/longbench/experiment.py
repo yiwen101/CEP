@@ -1,48 +1,58 @@
 #!/usr/bin/env python3
 """
-HotPotQA CEP Experiment using the new framework
+LongBenchV2 CEP Experiment using the new framework
 """
 
 import os
 import argparse
-from typing import List
+from typing import List, Optional
 from dotenv import load_dotenv
 
 from shared import Experiment, Evaluator
-from .dataset import HotpotDataset
-from .calls import HotpotCallBuilder
+from .dataset import LongBenchDataset
+from .calls import LongBenchCallBuilder
 
 # Load environment variables
 load_dotenv()
 
-def run_hotpot_experiment(
-    domains: List[str],
-    models: List[str], 
+def run_longbench_experiment(
+    domains: Optional[List[str]] = None,
+    models: List[str] = ["gpt-4o-mini-2024-07-18"], 
     max_samples: int = 50,
-    with_cot: bool = True,
+    output_dir: str = "results",
+    with_cot: bool = False
 ) -> dict:
     """
-    Run HotPotQA CEP experiment using the new framework
+    Run LongBenchV2 CEP experiment using the new framework
     
     Args:
-        domains: List of HotPotQA domains to test
+        domains: List of LongBenchV2 domains to test (if None, uses all available)
         models: List of models to test
         max_samples: Maximum number of samples per domain
+        split: Dataset split ('train' or 'test')
         output_dir: Output directory for results
+        with_cot: Whether to use Chain-of-Thought prompting
         
     Returns:
         Dictionary with experiment results
     """
-    print(f"Starting HotPotQA CEP Experiment")
-    print(f"Domains: {domains}")
+    print(f"Starting LongBenchV2 CEP Experiment")
     print(f"Models: {models}")
-    print(f"Max samples per domain: {max_samples}")
-    output_dir = "results"
+    print(f"Max samples: {max_samples}")
     print(f"Output directory: {output_dir}")
+    print(f"Chain-of-Thought: {with_cot}")
     
     # Create dataset and call builder
-    dataset = HotpotDataset()
-    call_builder = HotpotCallBuilder()
+    dataset = LongBenchDataset( max_samples=max_samples)
+    print(dataset.get_domains())
+    call_builder = LongBenchCallBuilder()
+    
+    # Get available domains if not specified
+    if domains is None:
+        domains = dataset.get_domains()
+        print(f"Using all available domains: {domains}")
+    else:
+        print(f"Domains: {domains}")
     
     # Create experiment
     experiment = Experiment(
@@ -63,21 +73,23 @@ def run_hotpot_experiment(
 
 def main():
     """Main function for command-line interface"""
-    parser = argparse.ArgumentParser(description="HotPotQA CEP Experiment")
+    parser = argparse.ArgumentParser(description="LongBenchV2 CEP Experiment")
     parser.add_argument("--domains", type=str, nargs="+", 
-                       default=["hotpot_dev_distractor"],
-                       help="HotPotQA domains to test (hotpot_dev_distractor, hotpot_dev_fullwiki, hotpot_train)")
+                       help="LongBenchV2 domains to test (if not specified, uses all available)")
     parser.add_argument("--models", type=str, nargs="+", 
-                       default=["gpt-3.5-turbo"],
+                       default=["gpt-4o-mini-2024-07-18"],
                        help="OpenAI models to test")
     parser.add_argument("--max_samples", type=int, default=50,
-                       help="Maximum number of samples per domain")
-    parser.add_argument("--output_dir", type=str, default="hotpot_results",
+                       help="Maximum number of samples")
+    parser.add_argument("--split", type=str, default="train",
+                       choices=["train", "test"],
+                       help="Dataset split to use")
+    parser.add_argument("--output_dir", type=str, default="results",
                        help="Output directory for results")
     parser.add_argument("--all_models", action="store_true",
                        help="Use all available models (gpt-3.5-turbo, gpt-4o, gpt-4o-mini)")
-    parser.add_argument("--all_domains", action="store_true",
-                       help="Use all available HotPotQA domains")
+    parser.add_argument("--with_cot", action="store_true",
+                       help="Use Chain-of-Thought prompting")
     
     args = parser.parse_args()
     
@@ -92,34 +104,29 @@ def main():
     
     # Handle --all_models flag
     if args.all_models:
-        models = ["gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"]
+        models = ["gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini-2024-07-18"]
         print(f"Using all models: {models}")
     else:
         models = args.models
     
-    # Handle --all_domains flag
-    if args.all_domains:
-        domains = ["hotpot_dev_distractor", "hotpot_dev_fullwiki", "hotpot_train"]
-        print(f"Using all domains: {domains}")
-    else:
-        domains = args.domains
-    
-    # Validate domains
-    available_domains = ["hotpot_dev_distractor", "hotpot_dev_fullwiki", "hotpot_train"]
-    for domain in domains:
-        if domain not in available_domains:
-            print(f"Warning: Unknown domain '{domain}'. Available domains: {available_domains}")
+    # Validate models (basic check)
+    available_models = ["gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini-2024-07-18", "gpt-4o-mini"]
+    for model in models:
+        if model not in available_models:
+            print(f"Warning: Model '{model}' not in known list. Available models: {available_models}")
     
     # Run experiment
     try:
-        results = run_hotpot_experiment(
-            domains=domains,
+        results = run_longbench_experiment(
+            domains=args.domains,
             models=models,
             max_samples=args.max_samples,
-            output_dir=args.output_dir
+            split=args.split,
+            output_dir=args.output_dir,
+            with_cot=args.with_cot
         )
         
-        print(f"\nHotPotQA CEP Experiment completed successfully!")
+        print(f"\nLongBenchV2 CEP Experiment completed successfully!")
         print(f"Results saved to: {args.output_dir}")
         
     except Exception as e:

@@ -1,25 +1,15 @@
 """
-MuSR Call Functions for CEP Experiments
+LongBenchV2 call methods for CEP experiments.
 """
 
-import os
-from typing import List, Dict
-from dotenv import load_dotenv
+import re
+from typing import Dict
+from shared import Call, CallResp, LLMClient, CEPPrompts, CallBuilder, model
+from shared.call_methods import create_baseline_direct_call, create_baseline_cot_call, create_cep_augmentation_call, create_cep_history_call
 
-from shared import Call, CallResp, LLMClient, CEPPrompts, CallBuilder
-from shared import model
-from shared.call_methods import (
-    create_baseline_direct_call,
-    create_baseline_cot_call,
-    create_cep_augmentation_call,
-    create_cep_history_call
-)
 
-# Load environment variables
-load_dotenv()
-
-class MusrCallBuilder(CallBuilder):
-    """CallBuilder for MuSR experiments"""
+class LongBenchCallBuilder(CallBuilder):
+    """CallBuilder for LongBenchV2 experiments"""
     
     def build_calls(self, model: str, domain: str, with_cot: bool) -> Dict[str, Call]:
         """Build a map of method names to call functions for a given model and domain"""
@@ -58,14 +48,23 @@ class MusrCallBuilder(CallBuilder):
         return calls
     
     def build_wrapper_calls(self, call: Call) -> Call:
-        """Build a map of method names to call functions for a given model and domain"""
+        """Build a wrapper call that extracts the answer from the response"""
         def wrapper_call(problem: model.Problem) -> CallResp:
             resp = call(problem)
-            answer_lower = resp.predicted_answer.lower()
-            if 'answer:' in answer_lower:
-                answer = answer_lower.split('answer:')[-1].strip()
-                resp.predicted_answer = answer
-            else:
-                resp.predicted_answer = "wrong answer"
+            print(resp.predicted_answer)
+            resp.predicted_answer = self.extract_answer(resp.predicted_answer)
             return resp
         return wrapper_call
+    
+    def extract_answer(self, response: str) -> str:
+        """Extract the answer choice from the model response"""
+        response = response.replace('*', '')
+        match = re.search(r'correct answer is \(([A-Da-z])\)', response)
+        if match:
+            return match.group(1)
+        else:
+            match = re.search(r'correct answer is ([A-Da-z])', response)
+            if match:
+                return match.group(1)
+            else:
+                return "wrong answer"

@@ -10,9 +10,9 @@ def main():
     
     # Run experiment with default settings
     results = run_musr_experiment(
-        domains=["murder_mystery","object_placements", "team_allocation"],
-        models=["gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"],
-        max_samples=1
+        domains=["murder_mystery"],
+        models=["gpt-3.5-turbo", "gpt-4o"],
+        max_samples=50
     )
     
     print("Experiment completed!")

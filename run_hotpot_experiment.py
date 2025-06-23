@@ -11,8 +11,8 @@ def main():
     # Run experiment with default settings
     results = run_hotpot_experiment(
         domains=["hotpot_dev_distractor"],
-        models=["gpt-3.5-turbo", "gpt-4o"],
-        max_samples=60,
+        models=["gpt-3.5-turbo"],
+        max_samples=50,
     )
     
     print("Experiment completed!")

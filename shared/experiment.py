@@ -35,14 +35,14 @@ class CallBuilder(ABC):
     """Abstract interface for call builders"""
     
     @abstractmethod
-    def build_calls(self, model: str, domain: str) -> Dict[str, Call]:
+    def build_calls(self, model: str, domain: str, with_cot: bool) -> Dict[str, Call]:
         """Build a map of method names to call functions for a given model and domain"""
         pass
 
 class Experiment:
     """Main experiment class for running experiments across multiple domains and models"""
     
-    def __init__(self, dataset: Dataset, call_builder: CallBuilder, output_dir: str = "results"):
+    def __init__(self, dataset: Dataset, call_builder: CallBuilder, output_dir: str = "results", with_cot: bool = True):
         """
         Initialize experiment
         
@@ -55,6 +55,7 @@ class Experiment:
         self.call_builder = call_builder
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.with_cot = with_cot
         
         # Validate that all domains exist in the dataset
         available_domains = dataset.get_domains()
@@ -80,7 +81,7 @@ class Experiment:
         
         # Create experiment metadata with auto-generated ID
         dataset_name = self.dataset.get_dataset_name()
-        experiment_meta = ExperimentDataManager.create_experiment_meta(dataset_name)
+        experiment_meta = ExperimentDataManager.create_experiment_meta(dataset_name, self.with_cot)
         experiment_folder = self.output_dir / experiment_meta.experiment_id
         experiment_folder.mkdir(parents=True, exist_ok=True)
         
@@ -118,7 +119,7 @@ class Experiment:
                 print(f"\n--- Running {model} on {domain} ---")
                 
                 # Build calls for this model and domain
-                calls = self.call_builder.build_calls(model, domain)
+                calls = self.call_builder.build_calls(model, domain, with_cot=self.with_cot)
                 print(f"  Built {len(calls)} call functions for {model} on {domain}")
                 
                 model_results = {}

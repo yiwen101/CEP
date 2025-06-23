@@ -6,3 +6,7 @@
 
 /benchmark/hotpot/__pycache__
 /benchmark/musr/__pycache__
+/__pycache__
+/benchmark/longbench/__pycache__
+/LongBench-main
+/plots

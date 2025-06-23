@@ -19,7 +19,8 @@ def run_musr_experiment(
     domains: List[str],
     models: List[str], 
     max_samples: int = 50,
-    output_dir: str = "results"
+    output_dir: str = "results",
+    with_cot: bool = True
 ) -> dict:
     """
     Run MuSR CEP experiment using the new framework
@@ -47,15 +48,17 @@ def run_musr_experiment(
     experiment = Experiment(
         dataset=dataset,
         call_builder=call_builder,
-        output_dir=output_dir
+        output_dir=output_dir,
+        with_cot=with_cot
     )
-    
+
     # Run experiment
     results = experiment.run(
         domains=domains,
         models=models,
         max_samples=max_samples
     )
+    
     
     return results
 

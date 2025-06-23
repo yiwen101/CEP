@@ -34,7 +34,6 @@ class Run:
         self.problems = problems
         self.call_func = call_func
         self.evaluator = evaluator
-        
         # Auto-generate run metadata
         self.run_meta = ExperimentDataManager.create_run_meta(
             experiment_meta.experiment_id,

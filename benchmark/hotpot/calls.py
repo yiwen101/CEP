@@ -20,7 +20,7 @@ load_dotenv()
 class HotpotCallBuilder(CallBuilder):
     """CallBuilder for HotPotQA experiments"""
     
-    def build_calls(self, model: str, domain: str) -> Dict[str, Call]:
+    def build_calls(self, model: str, domain: str, with_cot: bool) -> Dict[str, Call]:
         """Build a map of method names to call functions for a given model and domain"""
         calls = {}
         
@@ -46,12 +46,12 @@ class HotpotCallBuilder(CallBuilder):
                 method_name = f"cep_augmentation_{category}"
                 if num_prompts > 1:
                     method_name += f"_{prompt_index}"
-                calls[method_name] = create_cep_augmentation_call(model, cep_prompts_array)
+                calls[method_name] = create_cep_augmentation_call(model, cep_prompts_array, with_cot)
                 
                 # Add history variant
                 method_name = f"cep_history_{category}"
                 if num_prompts > 1:
                     method_name += f"_{prompt_index}"
-                calls[method_name] = create_cep_history_call(model, cep_prompts_array)
+                calls[method_name] = create_cep_history_call(model, cep_prompts_array, with_cot)
         
         return calls

@@ -17,6 +17,7 @@ class Problem:
     context: str
     gold_answer: str
     problem_id: str
+    choices: List[str]
 
 @dataclass
 class CallMeta:
@@ -63,7 +64,7 @@ class RunMeta:
     """Metadata for a run (set of calls with same method/model)"""
     experiment_id: str
     run_id: str
-    dataset: str
+    domain: str
     method: str
     model: str
     timestamp: str = ""
@@ -117,24 +118,24 @@ class ExperimentDataManager:
     """Utility class for creating, aggregating, and serializing experiment data"""
     
     @staticmethod
-    def create_experiment_meta(dataset: str) -> ExperimentMeta:
+    def create_experiment_meta(dataset: str, with_cot: bool) -> ExperimentMeta:
         """Create experiment metadata with auto-generated ID"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        experiment_id = f"{dataset}-{timestamp}"
+        experiment_id = f"{dataset}{"-cot" if with_cot else ""}-{timestamp}"
         return ExperimentMeta(
             experiment_id=experiment_id,
             dataset=dataset
         )
     
     @staticmethod
-    def create_run_meta(experiment_id: str, dataset: str, method: str, model: str) -> RunMeta:
+    def create_run_meta(experiment_id: str, domain: str, method: str, model: str) -> RunMeta:
         """Create run metadata with auto-generated ID"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_id = f"{method}_{model}"  # Removed timestamp for clarity
+        run_id = f"{domain}_{model}_{method}"  # Removed timestamp for clarity
         return RunMeta(
             experiment_id=experiment_id,
             run_id=run_id,
-            dataset=dataset,
+            domain=domain,
             method=method,
             model=model,
             timestamp=timestamp

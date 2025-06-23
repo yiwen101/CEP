@@ -107,7 +107,8 @@ class HotpotDataset(Dataset):
                 question=item['question'],
                 context=context,
                 gold_answer=item['answer'],
-                problem_id=item['_id']
+                problem_id=item['_id'],
+                choices=[]
             )
             problems.append(problem)
         
