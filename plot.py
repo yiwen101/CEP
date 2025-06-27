@@ -38,8 +38,8 @@ def get_metric_value(metrics: Dict[str, float], metric_name: str) -> float:
     """Get metric value handling different possible metric names."""
     if metric_name == 'recall':
         return metrics.get('avg_recall', metrics.get('recall', 0.0))
-    elif metric_name == 'ground_truth_all_in_pred':
-        return metrics.get('avg_ground_truth_all_in_pred', metrics.get('ground_truth_all_in_pred', 0.0))
+    elif metric_name == 'correct':
+        return metrics.get('avg_correct', metrics.get('correct', 0.0))
     return metrics.get(metric_name, 0.0)
 
 def create_bar_plot(data: Dict[str, Dict], domain: str, model: str, metric: str, output_path: str):
@@ -103,7 +103,7 @@ def create_summary_table(data: Dict[str, Dict], domain: str, model: str, output_
             table_data.append({
                 'Method': method,
                 'Recall': get_metric_value(metrics, 'recall'),
-                'Correctness': get_metric_value(metrics, 'ground_truth_all_in_pred')
+                'Correctness': get_metric_value(metrics, 'correct')
             })
     
     if not table_data:
@@ -189,7 +189,7 @@ def main():
                     
                     # Create correctness plot
                     correctness_plot_path = os.path.join(domain_dir, f'{domain}_{model}_correctness.png')
-                    create_bar_plot(data, domain, model, 'ground_truth_all_in_pred', correctness_plot_path)
+                    create_bar_plot(data, domain, model, 'correct', correctness_plot_path)
                     
                     # Create summary table
                     table_path = os.path.join(domain_dir, f'{domain}_{model}_table.png')

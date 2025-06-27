@@ -136,7 +136,7 @@ class Run:
         print(f"F1 Score: {results.avg_f1:.3f}")
         print(f"Precision: {results.avg_precision:.3f}")
         print(f"Recall: {results.avg_recall:.3f}")
-        print(f"GT All in Pred: {results.avg_ground_truth_all_in_pred:.3f}")
+        print(f"GT All in Pred: {results.avg_correct:.3f}")
         print(f"Avg Time: {results.avg_execution_time:.2f}s")
         print(f"Avg Tokens: {results.avg_tokens_used:.0f}")
         return run_data 

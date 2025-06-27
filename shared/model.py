@@ -49,7 +49,7 @@ class CallMetric:
     precision: float
     recall: float
     f1: float
-    ground_truth_all_in_pred: float
+    correct: float
     llm_correctness: Optional[bool] = None
 
 @dataclass
@@ -76,7 +76,7 @@ class AggregatedRunResults:
     avg_precision: float
     avg_recall: float
     avg_f1: float
-    avg_ground_truth_all_in_pred: float
+    avg_correct: float
     avg_execution_time: float
     avg_tokens_used: float
     sample_count: int
@@ -121,7 +121,8 @@ class ExperimentDataManager:
     def create_experiment_meta(dataset: str, with_cot: bool) -> ExperimentMeta:
         """Create experiment metadata with auto-generated ID"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        experiment_id = f"{dataset}{"-cot" if with_cot else ""}-{timestamp}"
+        cot = "-cot" if with_cot else ""
+        experiment_id = f"{dataset}{cot}-{timestamp}"
         return ExperimentMeta(
             experiment_id=experiment_id,
             dataset=dataset
@@ -159,7 +160,7 @@ class ExperimentDataManager:
                 avg_precision=0.0,
                 avg_recall=0.0,
                 avg_f1=0.0,
-                avg_ground_truth_all_in_pred=0.0,
+                avg_correct=0.0,
                 avg_execution_time=0.0,
                 avg_tokens_used=0.0,
                 sample_count=0
@@ -172,7 +173,7 @@ class ExperimentDataManager:
         avg_precision = sum(call.call_metric.precision for call in calls) / total_calls
         avg_recall = sum(call.call_metric.recall for call in calls) / total_calls
         avg_f1 = sum(call.call_metric.f1 for call in calls) / total_calls
-        avg_ground_truth_all_in_pred = sum(call.call_metric.ground_truth_all_in_pred for call in calls) / total_calls
+        avg_correct = sum(call.call_metric.correct for call in calls) / total_calls
         avg_execution_time = sum(call.call_resp.execution_time for call in calls) / total_calls
         avg_tokens_used = sum(call.call_resp.tokens_used for call in calls) / total_calls
         
@@ -181,7 +182,7 @@ class ExperimentDataManager:
             avg_precision=avg_precision,
             avg_recall=avg_recall,
             avg_f1=avg_f1,
-            avg_ground_truth_all_in_pred=avg_ground_truth_all_in_pred,
+            avg_correct=avg_correct,
             avg_execution_time=avg_execution_time,
             avg_tokens_used=avg_tokens_used,
             sample_count=total_calls

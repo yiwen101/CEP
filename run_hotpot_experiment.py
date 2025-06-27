@@ -12,7 +12,7 @@ def main():
     results = run_hotpot_experiment(
         domains=["hotpot_dev_distractor"],
         models=["gpt-3.5-turbo"],
-        max_samples=50,
+        max_samples=2,
     )
     
     print("Experiment completed!")

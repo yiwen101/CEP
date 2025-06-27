@@ -42,7 +42,7 @@ class CallBuilder(ABC):
 class Experiment:
     """Main experiment class for running experiments across multiple domains and models"""
     
-    def __init__(self, dataset: Dataset, call_builder: CallBuilder, output_dir: str = "results", with_cot: bool = True):
+    def __init__(self, dataset: Dataset, call_builder: CallBuilder, output_dir: str = "results", with_cot: bool = True, evaluator: Evaluator = Evaluator()):
         """
         Initialize experiment
         
@@ -56,6 +56,7 @@ class Experiment:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.with_cot = with_cot
+        self.evaluator = evaluator
         
         # Validate that all domains exist in the dataset
         available_domains = dataset.get_domains()
@@ -111,7 +112,7 @@ class Experiment:
                 continue
             
             # Create evaluator for this domain
-            evaluator = Evaluator()
+            evaluator = self.evaluator
             
             domain_results = {}
             
@@ -150,7 +151,7 @@ class Experiment:
                                 'f1': run_data.aggregated_run_results.avg_f1,
                                 'precision': run_data.aggregated_run_results.avg_precision,
                                 'recall': run_data.aggregated_run_results.avg_recall,
-                                'ground_truth_all_in_pred': run_data.aggregated_run_results.avg_ground_truth_all_in_pred,
+                                'correct': run_data.aggregated_run_results.avg_correct,
                                 'avg_execution_time': run_data.aggregated_run_results.avg_execution_time,
                                 'avg_tokens_used': run_data.aggregated_run_results.avg_tokens_used,
                                 'sample_count': run_data.aggregated_run_results.sample_count
@@ -203,7 +204,7 @@ class Experiment:
                         metrics = method_data['metrics']
                         print(f"{model:<20} {method:<25} {metrics['exact_match']:<8.3f} "
                               f"{metrics['f1']:<8.3f} {metrics['precision']:<10.3f} "
-                              f"{metrics['recall']:<8.3f} {metrics['ground_truth_all_in_pred']:<12.3f} "
+                              f"{metrics['recall']:<8.3f} {metrics['correct']:<12.3f} "
                               f"{metrics['avg_execution_time']:<10.2f} {metrics['avg_tokens_used']:<10.0f}")
         
         print("\n" + "="*120) 

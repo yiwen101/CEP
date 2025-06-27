@@ -49,7 +49,7 @@ class AnalysisUtils:
                 avg_precision=0.0,
                 avg_recall=0.0,
                 avg_f1=0.0,
-                avg_ground_truth_all_in_pred=0.0,
+                avg_correct=0.0,
                 avg_execution_time=0.0,
                 avg_tokens_used=0.0,
                 sample_count=0
@@ -62,7 +62,7 @@ class AnalysisUtils:
         avg_precision = sum(call.call_metric.precision for call in calls) / total_calls
         avg_recall = sum(call.call_metric.recall for call in calls) / total_calls
         avg_f1 = sum(call.call_metric.f1 for call in calls) / total_calls
-        avg_ground_truth_all_in_pred = sum(call.call_metric.ground_truth_all_in_pred for call in calls) / total_calls
+        avg_correct = sum(call.call_metric.correct for call in calls) / total_calls
         avg_execution_time = sum(call.call_resp.execution_time for call in calls) / total_calls
         avg_tokens_used = sum(call.call_resp.tokens_used for call in calls) / total_calls
         
@@ -71,7 +71,7 @@ class AnalysisUtils:
             avg_precision=avg_precision,
             avg_recall=avg_recall,
             avg_f1=avg_f1,
-            avg_ground_truth_all_in_pred=avg_ground_truth_all_in_pred,
+            avg_correct=avg_correct,
             avg_execution_time=avg_execution_time,
             avg_tokens_used=avg_tokens_used,
             sample_count=total_calls
@@ -175,7 +175,7 @@ class AnalysisUtils:
         print(f"F1 Score: {results.avg_f1:.3f}")
         print(f"Precision: {results.avg_precision:.3f}")
         print(f"Recall: {results.avg_recall:.3f}")
-        print(f"GT All in Pred: {results.avg_ground_truth_all_in_pred:.3f}")
+        print(f"GT All in Pred: {results.avg_correct:.3f}")
         print(f"Avg Time: {results.avg_execution_time:.2f}s")
         print(f"Avg Tokens: {results.avg_tokens_used:.0f}")
     
@@ -197,5 +197,5 @@ class AnalysisUtils:
         for run in runs:
             results = run.aggregated_run_results
             print(f"{run.run_meta.method:<30} {run.run_meta.model:<15} {results.avg_is_exact_match:<8.3f} {results.avg_f1:<8.3f} "
-                  f"{results.avg_precision:<10.3f} {results.avg_recall:<8.3f} {results.avg_ground_truth_all_in_pred:<12.3f} "
+                  f"{results.avg_precision:<10.3f} {results.avg_recall:<8.3f} {results.avg_correct:<12.3f} "
                   f"{results.avg_execution_time:<10.2f} {results.avg_tokens_used:<10.0f}")

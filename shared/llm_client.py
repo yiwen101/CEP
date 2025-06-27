@@ -21,7 +21,7 @@ class LLMClient:
         self.model = model
     
     def call_with_history(self, messages: List[Dict[str, str]], max_tokens: int = 1000, 
-                         temperature: float = 0.0, model: str | None = None, 
+                         temperature: float = 0.0, model: str = "gpt-3.5-turbo",
                          max_retries: int = 10, base_delay: float = 1.0) -> Tuple[str, int, float]:
         """
         Make a call to OpenAI API with conversation history and return response with token count
@@ -41,7 +41,7 @@ class LLMClient:
             try:
                 start_time = time.time()
                 response = self.client.chat.completions.create(
-                    model=model if model else self.model,
+                    model=model,
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature
@@ -49,7 +49,7 @@ class LLMClient:
                 execution_time = time.time() - start_time
                 
                 content = response.choices[0].message.content
-                tokens_used = response.usage.total_tokens
+                tokens_used = response.usage.completion_tokens
                 
                 return content, tokens_used, execution_time
                 

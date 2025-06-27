@@ -13,7 +13,7 @@ from .model import (
 )
 from .run import Run, Call
 from .analysis import AnalysisUtils
-from .evaluator import Evaluator
+from .evaluator import Evaluator, MathEvaluator
 from .experiment import Experiment, Dataset, CallBuilder
 
 __all__ = [
@@ -44,6 +44,7 @@ __all__ = [
     
     # Evaluators
     'Evaluator',
+    'MathEvaluator',
     
     # Experiment framework
     'Experiment',
