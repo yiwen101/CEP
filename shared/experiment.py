@@ -42,7 +42,7 @@ class CallBuilder(ABC):
 class Experiment:
     """Main experiment class for running experiments across multiple domains and models"""
     
-    def __init__(self, dataset: Dataset, call_builder: CallBuilder, output_dir: str = "results", with_cot: bool = True, evaluator: Evaluator = Evaluator()):
+    def __init__(self, dataset: Dataset, call_builder: CallBuilder, output_dir: str = "results", with_cot: bool = True, evaluator: Evaluator = Evaluator(), custom_id: str = None):
         """
         Initialize experiment
         
@@ -50,6 +50,9 @@ class Experiment:
             dataset: Dataset interface that provides problems
             call_builder: CallBuilder that creates calls for model/domain combinations
             output_dir: Base directory for experiment outputs
+            with_cot: Whether to use chain-of-thought prompting
+            evaluator: Evaluator instance for evaluating responses
+            custom_id: Optional custom experiment ID. If not provided, an ID will be auto-generated
         """
         self.dataset = dataset
         self.call_builder = call_builder
@@ -57,6 +60,7 @@ class Experiment:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.with_cot = with_cot
         self.evaluator = evaluator
+        self.custom_id = custom_id
         
         # Validate that all domains exist in the dataset
         available_domains = dataset.get_domains()
@@ -80,9 +84,9 @@ class Experiment:
         print(f"Max samples per domain: {max_samples}")
         print(f"Output directory: {self.output_dir}")
         
-        # Create experiment metadata with auto-generated ID
+        # Create experiment metadata with auto-generated ID or custom ID
         dataset_name = self.dataset.get_dataset_name()
-        experiment_meta = ExperimentDataManager.create_experiment_meta(dataset_name, self.with_cot)
+        experiment_meta = ExperimentDataManager.create_experiment_meta(dataset_name, self.with_cot, self.custom_id)
         experiment_folder = self.output_dir / experiment_meta.experiment_id
         experiment_folder.mkdir(parents=True, exist_ok=True)
         
@@ -154,6 +158,8 @@ class Experiment:
                                 'correct': run_data.aggregated_run_results.avg_correct,
                                 'avg_execution_time': run_data.aggregated_run_results.avg_execution_time,
                                 'avg_tokens_used': run_data.aggregated_run_results.avg_tokens_used,
+                                'avg_reasoning_tokens': run_data.aggregated_run_results.avg_reasoning_tokens,
+                                'avg_step_count': run_data.aggregated_run_results.avg_step_count,
                                 'sample_count': run_data.aggregated_run_results.sample_count
                             }
                         }

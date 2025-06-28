@@ -52,7 +52,9 @@ class AnalysisUtils:
                 avg_correct=0.0,
                 avg_execution_time=0.0,
                 avg_tokens_used=0.0,
-                sample_count=0
+                avg_reasoning_tokens=0.0,
+                sample_count=0,
+                avg_step_count=0.0
             )
         
         total_calls = len(calls)
@@ -65,6 +67,8 @@ class AnalysisUtils:
         avg_correct = sum(call.call_metric.correct for call in calls) / total_calls
         avg_execution_time = sum(call.call_resp.execution_time for call in calls) / total_calls
         avg_tokens_used = sum(call.call_resp.tokens_used for call in calls) / total_calls
+        avg_reasoning_tokens = sum(call.call_resp.reasoning_tokens for call in calls) / total_calls
+        avg_step_count = sum(call.call_metric.step_count for call in calls) / total_calls,
         
         return AggregatedRunResults(
             avg_is_exact_match=avg_is_exact_match,
@@ -74,7 +78,9 @@ class AnalysisUtils:
             avg_correct=avg_correct,
             avg_execution_time=avg_execution_time,
             avg_tokens_used=avg_tokens_used,
-            sample_count=total_calls
+            avg_reasoning_tokens=avg_reasoning_tokens,
+            sample_count=total_calls,
+            avg_step_count=avg_step_count
         )
     
     @staticmethod

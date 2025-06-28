@@ -10,6 +10,14 @@ from .model import CallResp, CallMetric
 from .utils.grader import check_is_correct
 
 logger = logging.getLogger(__name__)
+def get_step_count(history: List[Dict[str, str]]) -> int:
+    """Get step count from predicted answer"""
+    response = ""
+    for message in history:
+        if message['role'] == 'assistant':
+            response += message['content']
+    #resp = "\n".join(list(filter(lambda msg:msg['role'] == 'assistant', history))))
+    return len(list(filter(lambda x: x.strip() != "", response.split("\n"))))
 
 class Evaluator:
     """HotPotQA-style evaluator with more sophisticated normalization"""
@@ -80,7 +88,7 @@ class Evaluator:
             recall=recall,
             f1=f1,
             correct=correct,
-            llm_correctness=None
+            step_count=0
         )
 
 class MathEvaluator(Evaluator):
@@ -142,5 +150,5 @@ class MathEvaluator(Evaluator):
             recall=0,
             f1=0,
             correct=1.0 if correct else 0.0,
-            llm_correctness=None
+            step_count=get_step_count(call_resp.chat_history)
         )

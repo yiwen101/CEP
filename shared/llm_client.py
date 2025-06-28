@@ -20,8 +20,7 @@ class LLMClient:
         self.client = OpenAI(api_key=API_KEY)
         self.model = model
     
-    def call_with_history(self, messages: List[Dict[str, str]], max_tokens: int = 1000, 
-                         temperature: float = 0.0, model: str = "gpt-3.5-turbo",
+    def call_with_history(self, messages: List[Dict[str, str]], model: str, max_tokens: int = 2000, 
                          max_retries: int = 10, base_delay: float = 1.0) -> Tuple[str, int, float]:
         """
         Make a call to OpenAI API with conversation history and return response with token count
@@ -43,15 +42,16 @@ class LLMClient:
                 response = self.client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=temperature
+                    max_completion_tokens=max_tokens
                 )
                 execution_time = time.time() - start_time
                 
                 content = response.choices[0].message.content
                 tokens_used = response.usage.completion_tokens
+                print(response.usage)
+                reason_token = response.usage.completion_tokens_details.reasoning_tokens
                 
-                return content, tokens_used, execution_time
+                return content, tokens_used, reason_token, execution_time
                 
             except Exception as e:
                 if attempt == max_retries - 1:  # Last attempt
@@ -78,7 +78,7 @@ class LLMClient:
             """}
         ]
         
-        response, _, _ = self.call_with_history(messages, max_tokens=10, temperature=0.0)
+        response, _, _, _ = self.call_with_history(messages, max_tokens=10, temperature=0.0)
         return response.strip().lower() == "correct" 
 
 
@@ -102,5 +102,5 @@ Predicted Answer: {predicted_answer}
 Is the predicted answer correct? Respond with only "correct" or "wrong"."""}
         ]
         
-        response, _, _ = self.call_with_history(messages, max_tokens=10, temperature=0.0)
+        response, _, _, _ = self.call_with_history(messages, max_tokens=10, temperature=0.0)
         return response.strip().lower() == "correct" 

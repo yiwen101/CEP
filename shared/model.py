@@ -40,7 +40,7 @@ class CallResp:
     tokens_used: int
     chat_history: List[Dict[str, str]]
     elaboration: Optional[str] = None
-    reasoning: Optional[str] = None
+    reasoning_tokens: int = 0
 
 @dataclass
 class CallMetric:
@@ -50,7 +50,7 @@ class CallMetric:
     recall: float
     f1: float
     correct: float
-    llm_correctness: Optional[bool] = None
+    step_count: int
 
 @dataclass
 class CallData:
@@ -79,6 +79,8 @@ class AggregatedRunResults:
     avg_correct: float
     avg_execution_time: float
     avg_tokens_used: float
+    avg_reasoning_tokens: float
+    avg_step_count: float
     sample_count: int
 
 @dataclass
@@ -118,11 +120,14 @@ class ExperimentDataManager:
     """Utility class for creating, aggregating, and serializing experiment data"""
     
     @staticmethod
-    def create_experiment_meta(dataset: str, with_cot: bool) -> ExperimentMeta:
-        """Create experiment metadata with auto-generated ID"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        cot = "-cot" if with_cot else ""
-        experiment_id = f"{dataset}{cot}-{timestamp}"
+    def create_experiment_meta(dataset: str, with_cot: bool, custom_id: str = None) -> ExperimentMeta:
+        """Create experiment metadata with auto-generated ID or custom ID"""
+        if custom_id:
+            experiment_id = custom_id
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            cot = "-cot" if with_cot else ""
+            experiment_id = f"{dataset}{cot}-{timestamp}"
         return ExperimentMeta(
             experiment_id=experiment_id,
             dataset=dataset
@@ -163,6 +168,8 @@ class ExperimentDataManager:
                 avg_correct=0.0,
                 avg_execution_time=0.0,
                 avg_tokens_used=0.0,
+                avg_reasoning_tokens=0.0,
+                avg_step_count=0.0,
                 sample_count=0
             )
         
@@ -176,6 +183,8 @@ class ExperimentDataManager:
         avg_correct = sum(call.call_metric.correct for call in calls) / total_calls
         avg_execution_time = sum(call.call_resp.execution_time for call in calls) / total_calls
         avg_tokens_used = sum(call.call_resp.tokens_used for call in calls) / total_calls
+        avg_reasoning_tokens = sum(call.call_resp.reasoning_tokens for call in calls) / total_calls
+        avg_step_count = sum(call.call_metric.step_count for call in calls) / total_calls
         
         return AggregatedRunResults(
             avg_is_exact_match=avg_is_exact_match,
@@ -185,6 +194,8 @@ class ExperimentDataManager:
             avg_correct=avg_correct,
             avg_execution_time=avg_execution_time,
             avg_tokens_used=avg_tokens_used,
+            avg_reasoning_tokens=avg_reasoning_tokens,
+            avg_step_count=avg_step_count,
             sample_count=total_calls
         )
     
