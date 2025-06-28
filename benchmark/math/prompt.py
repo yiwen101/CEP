@@ -35,6 +35,14 @@ def extract_answer(pred_str, use_last_number=True):
         else:
             a = ans.split("$")[0].strip()
         pred = a
+    else:
+        # find content in {{...}}
+        content = re.search(r"{{.*?}}", a)
+        if content:
+            a = content.group(0)
+        else:
+            a = a.split("$")[0].strip()
+        pred = a
 
     # multiple line
     # pred = pred.split("\n")[0]
@@ -50,7 +58,7 @@ def extract_answer(pred_str, use_last_number=True):
 
 def build_call(model: str, template: Callable[[str], str]) -> Call:
     def call(problem: Problem) -> CallResp:
-        print(f"Calling {model} with prompt: {template(problem)}")
+        #print(f"Calling {model} with prompt: {template(problem)}")
         llm_client = LLMClient(model)
         prompt = template(problem)
         messages = [
@@ -67,11 +75,12 @@ def build_call(model: str, template: Callable[[str], str]) -> Call:
         )
     return call
 
+base_prompt = "Please solve this math problem. Put your final answer within boxed{{}}."
 base_cot_prompt = "Please solve this math problem step by step. Put your final answer within boxed{{}}."
 
-def build_template(decorators: List[Callable[[str, str], str]]) -> Callable[[Problem], str]:
+def build_template(decorators: List[Callable[[str, str], str]], cot = False) -> Callable[[Problem], str]:
     def template(problem: Problem):
-        prompt = base_cot_prompt
+        prompt = base_cot_prompt if cot else base_prompt
         for decorator in decorators:
             prompt = decorator(prompt, problem.problem_id) 
         return f"{prompt}\n\nQuestion: {problem.question}"
@@ -93,73 +102,101 @@ with_efficient_symbol = lambda prompt, problem_id: f"{prompt}\n\nFirst, define e
 
 with_formalize = lambda prompt, problem_id: f"{prompt}\n\nFirst, formalize the problem by defining all variables, constraints, and the goal. Then, solve using only the formal structure."
 
-with_token_budget = lambda budget: lambda prompt, problem_id: f"{prompt}\n\nPlease solve the problem with at most {budget} tokens."
-def with_token_ratio_budget(ratio):
-    def decorator(prompt, problem_id):
-        resp = base_call_cache[problem_id]
-        budget = floor(resp.tokens_used * ratio)
-        return with_token_budget(budget)(prompt, problem_id)
-    return decorator
+def with_token_budget(budget): 
+    return lambda prompt, problem_id: f"{prompt}\n\nPlease solve the problem with at most {int(budget)} tokens."
 
-with_step_limit = lambda step_limit: lambda prompt, problem_id: f"{prompt}\n\nPlease solve the problem with at most {step_limit} steps."
-def with_step_ratio_limit(ratio):
-    def decorator(prompt, problem_id):
-        resp = base_call_cache[problem_id]
-        step_count = get_step_count(resp.chat_history)
-        step_limit = floor(step_count * ratio)
-        return with_step_limit(step_limit)(prompt, problem_id)
-    return decorator
+def with_step_limit(step_limit): 
+    return lambda prompt, problem_id: f"{prompt}\n\nPlease solve the problem with at most {int(step_limit)} steps."
 
-base_call_cache = {}
+def with_step_and_token_limit(step_limit, token_limit):
+    return lambda prompt, problem_id: f"{prompt}\n\nPlease solve the problem with {int(token_limit)} tokens in at most {int(step_limit)} steps."
 
-def base_wrapper(base_call:Call):
-    def wrapped_call(problem:Problem):
-        call_resp = base_call(problem)
-        base_call_cache[problem.problem_id] = call_resp
-        return call_resp
-    return wrapped_call
 
 class MathCallBuilder(CallBuilder):
     """Call builder for math problems"""
     
-    def build_calls(self, model: str, domain: str, with_cot: bool) -> Dict[str, Call]:
-        """Build calls for math problems"""
-        calls = {}
-        prompts = {
-            "base": [],
-            #"with_concise_answer": [with_concise_answer],
-            #"with_point_form_answer": [with_point_form_answer],
+    def __init__(self):
+        """Initialize the builder with an internal cache"""
+        self._base_call_cache = {}
+        self._prompts = {
+                #"with_concise_answer": [with_concise_answer],
+                #"with_point_form_answer": [with_point_form_answer],
             #"with_headline_concise": [with_headline_concise],
             #"with_telegram_persona": [with_telegram_persona],
             #"with_critical_path": [with_critical_path],
             #"with_efficient_language": [with_efficient_language],
             #"with_formalize": [with_formalize],
-            #"with_token_budget_50": [with_token_budget(50)],
-            #"with_token_budget_100": [with_token_budget(100)],
-            #"with_token_budget_200": [with_token_budget(200)],
-            #"with_token_budget_400": [with_token_budget(400)],
-            #"with_token_budget_600": [with_token_budget(600)],
-            "with_token_ratio_budget_0.25": [with_token_ratio_budget(0.25)],
-            "with_token_ratio_budget_0.5": [with_token_ratio_budget(0.5)],
-            "with_token_ratio_budget_1.0": [with_token_ratio_budget(1.0)],
-            "with_token_ratio_budget_2.0": [with_token_ratio_budget(2.0)],
-            "with_token_ratio_budget_4.0": [with_token_ratio_budget(4.0)],
             #"with_efficient_symbol": [with_efficient_symbol],
-            #"with_step_limit_5": [with_step_limit(5)],
-            #"with_step_limit_15": [with_step_limit(15)],
-            #"with_step_limit_40": [with_step_limit(40)],
-            "with_step_ratio_limit_0.25": [with_step_ratio_limit(0.25)],
-            "with_step_ratio_limit_0.5": [with_step_ratio_limit(0.5)],
-            "with_step_ratio_limit_1.0": [with_step_ratio_limit(1.0)],
-            "with_step_ratio_limit_2.0": [with_step_ratio_limit(2.0)],
-            "with_step_ratio_limit_4.0": [with_step_ratio_limit(4.0)],
+            "with_token_ratio_budget_0.1": [self._with_token_ratio_budget(0.1)],
+            #"with_token_ratio_budget_0.2": [self._with_token_ratio_budget(0.2)],
+            "with_token_ratio_budget_0.5": [self._with_token_ratio_budget(0.5)],
+            "with_token_ratio_budget_1.0": [self._with_token_ratio_budget(1.0)],
+            "with_token_ratio_budget_2.0": [self._with_token_ratio_budget(2.0)],
+            "with_step_ratio_limit_0.1": [self._with_step_ratio_limit(0.1)],
+            #"with_step_ratio_limit_0.2": [self._with_step_ratio_limit(0.2)],
+            "with_step_ratio_limit_0.5": [self._with_step_ratio_limit(0.5)],
+            "with_step_ratio_limit_1.0": [self._with_step_ratio_limit(1.0)],
+            "with_step_ratio_limit_2.0": [self._with_step_ratio_limit(2.0)],
+            "with_step_and_token_ratio_limit_0.1_0.1": [self._with_step_and_token_ratio_limit(0.1, 0.1)],
+            "with_step_and_token_ratio_limit_0.1_0.5": [self._with_step_and_token_ratio_limit(0.1, 0.5)],
+            "with_step_and_token_ratio_limit_0.1_1.0": [self._with_step_and_token_ratio_limit(0.1, 1.0)],
+            "with_step_and_token_ratio_limit_0.1_2.0": [self._with_step_and_token_ratio_limit(0.1, 2.0)],
+            "with_step_and_token_ratio_limit_0.5_0.1": [self._with_step_and_token_ratio_limit(0.5, 0.1)],
+            "with_step_and_token_ratio_limit_0.5_0.5": [self._with_step_and_token_ratio_limit(0.5, 0.5)],
+            "with_step_and_token_ratio_limit_0.5_1.0": [self._with_step_and_token_ratio_limit(0.5, 1.0)],
+            "with_step_and_token_ratio_limit_0.5_2.0": [self._with_step_and_token_ratio_limit(0.5, 2.0)],
+            "with_step_and_token_ratio_limit_1.0_0.1": [self._with_step_and_token_ratio_limit(1.0, 0.1)],
+            "with_step_and_token_ratio_limit_1.0_0.5": [self._with_step_and_token_ratio_limit(1.0, 0.5)],
+            "with_step_and_token_ratio_limit_1.0_1.0": [self._with_step_and_token_ratio_limit(1.0, 1.0)],
+            "with_step_and_token_ratio_limit_1.0_2.0": [self._with_step_and_token_ratio_limit(1.0, 2.0)],
+            "with_step_and_token_ratio_limit_2.0_0.1": [self._with_step_and_token_ratio_limit(2.0, 0.1)],
+            "with_step_and_token_ratio_limit_2.0_0.5": [self._with_step_and_token_ratio_limit(2.0, 0.5)],
+            "with_step_and_token_ratio_limit_2.0_1.0": [self._with_step_and_token_ratio_limit(2.0, 1.0)],
+            "with_step_and_token_ratio_limit_2.0_2.0": [self._with_step_and_token_ratio_limit(2.0, 2.0)],
         }
 
-        for prompt_name, decorators in prompts.items():
-            template = build_template(decorators)
+    def _with_token_ratio_budget(self, ratio):
+        """Internal method to create token ratio budget decorator"""
+        def decorator(prompt, problem_id):
+            resp = self._base_call_cache[problem_id]
+            budget = floor(resp.tokens_used * ratio)
+            return with_token_budget(budget)(prompt, problem_id)
+        return decorator
+
+    def _with_step_ratio_limit(self, ratio):
+        """Internal method to create step ratio limit decorator"""
+        def decorator(prompt, problem_id):
+            resp = self._base_call_cache[problem_id]
+            step_count = get_step_count(resp.chat_history)
+            step_limit = floor(step_count * ratio)
+            return with_step_limit(step_limit)(prompt, problem_id)
+        return decorator
+
+    def _with_step_and_token_ratio_limit(self, step_ratio, token_ratio):
+        def decorator(prompt, problem_id):
+            resp = self._base_call_cache[problem_id]
+            step_count = get_step_count(resp.chat_history)
+            step_limit = max(1, floor(step_count * step_ratio))
+            token_limit = floor(resp.tokens_used * token_ratio)
+            return with_step_and_token_limit(step_limit, token_limit)(prompt, problem_id)
+        return decorator
+
+    def _base_wrapper(self, base_call: Call):
+        """Internal method to wrap base call with caching"""
+        def wrapped_call(problem: Problem):
+            call_resp = base_call(problem)
+            self._base_call_cache[problem.problem_id] = call_resp
+            return call_resp
+        return wrapped_call
+    
+    def build_calls(self, model: str, domain: str, with_cot: bool) -> Dict[str, Call]:
+        """Build calls for math problems"""
+        calls = [("base", self._base_wrapper(build_call(model, build_template([], cot=False))))]
+        
+        for prompt_name, decorators in self._prompts.items():
+            template = build_template(decorators, cot=False)
             call = build_call(model, template)
-            if prompt_name == "base":
-                call = base_wrapper(call)
-            calls[prompt_name] = call
+            calls.append((prompt_name, call))
+            
         return calls
 

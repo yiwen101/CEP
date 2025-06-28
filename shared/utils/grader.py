@@ -146,7 +146,7 @@ def math_equal(
         if is_digit(prediction) and is_digit(reference):
             prediction = parse_digits(prediction)
             reference = parse_digits(reference)
-            print(f"check numerical equal prediction: {prediction}, reference: {reference}")
+            #print(f"check numerical equal prediction: {prediction}, reference: {reference}")
             # number questions
             if include_percentage:
                 gt_result = [reference / 100, reference, reference * 100]
@@ -201,7 +201,7 @@ def math_equal(
     for s in ["{", "}", "(", ")"]:
         ref_str = ref_str.replace(s, "").strip()
         pred_str = pred_str.replace(s, "").strip()
-        print(f"check pred_str: {pred_str}, ref_str: {ref_str}")
+        #print(f"check pred_str: {pred_str}, ref_str: {ref_str}")
     if pred_str.lower() == ref_str.lower():
         return True
     

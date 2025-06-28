@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import List, Callable, Dict, Any
 from dataclasses import asdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .model import (
     Problem, CallData, CallMeta, CallResp, CallMetric,
@@ -64,10 +65,10 @@ class Run:
             sample_level="",
             timestamp=self.run_meta.timestamp
         )
-    
-    def _execute_single_call(self, problem: Problem, problem_index: int) -> CallData:
+
+    def _execute_call(self, problem: Problem, problem_index: int) -> CallData:
         """Execute a single call on a problem"""
-        print(f"  Processing problem {problem_index + 1}/{len(self.problems)}")
+        print(f"  Processing problem {problem_index + 1}/{len(self.problems)} ({self.method})")
         
         # Create call metadata
         call_meta = self._create_call_meta(problem, problem_index)
@@ -88,11 +89,48 @@ class Run:
         call_data = ExperimentDataManager.create_call(call_meta, call_resp, call_metric)
         
         # Print progress
-        print(f"    Gold: {problem.gold_answer}")
-        print(f"    Pred: {call_resp.predicted_answer}")
-        print(f"    EM: {call_metric.is_exact_match}, F1: {call_metric.f1:.3f}")
+        #print(f"    Gold: {problem.gold_answer}")
+        #print(f"    Pred: {call_resp.predicted_answer}")
+        #print(f"    EM: {call_metric.is_exact_match}, F1: {call_metric.f1:.3f}")
         
         return call_data
+
+    def _execute_calls(self, problems: List[Problem], sequential: bool = False) -> List[CallData]:
+        """Execute calls on a list of problems, either sequentially or in parallel"""
+        # Initialize calls.json
+        calls_file = self.run_folder_path / "calls.json"
+        with open(calls_file, 'w') as f:
+            json.dump([], f)
+
+        if sequential:
+            # Run calls sequentially
+            results = [self._execute_call(problem, i) for i, problem in enumerate(problems)]
+        else:
+            # Run calls in parallel with n=8 workers
+            with ThreadPoolExecutor(max_workers=25) as executor:
+                future_to_problem = {
+                    executor.submit(self._execute_call, problem, i): (problem, i)
+                    for i, problem in enumerate(problems)
+                }
+                
+                results = []
+                for future in as_completed(future_to_problem):
+                    problem, i = future_to_problem[future]
+                    try:
+                        call_data = future.result()
+                        results.append(call_data)
+                    except Exception as e:
+                        print(f"Error processing problem {i} for {self.method}: {e}")
+        
+        # Sort results by problem index to maintain order
+        results.sort(key=lambda x: int(x.call_meta.sample_id.split('_')[-1]) if '_' in x.call_meta.sample_id else 0)
+        
+        # Save all call data at once
+        calls_data = [ExperimentDataManager.to_dict(call_data) for call_data in results]
+        with open(calls_file, 'w') as f:
+            json.dump(calls_data, f, indent=2)
+            
+        return results
     
     def run(self) -> RunData:
         """Execute the run on all problems and save results"""
@@ -102,41 +140,16 @@ class Run:
         print(f"Evaluator: {self.evaluator.__class__.__name__}")
         
         # Execute calls on all problems
-        for i, problem in enumerate(self.problems):
-            call_data = self._execute_single_call(problem, i)
-            self.calls.append(call_data)
-        
-        # Save calls.json (all calls in one file)
-        calls_file = self.run_folder_path / "calls.json"
-        calls_data = [ExperimentDataManager.to_dict(call) for call in self.calls]
-        with open(calls_file, 'w') as f:
-            json.dump(calls_data, f, indent=2)
-        
-        # Create aggregated results from calls
-        aggregated_results = ExperimentDataManager.aggregate_calls_to_run_results(self.calls)
-        
-        # Create run data without the calls array
+        self.calls = self._execute_calls(self.problems)
         run_data = RunData(
             run_meta=self.run_meta,
-            aggregated_run_results=aggregated_results,
-            calls=[]  # Empty array since calls are stored in calls.json
+            aggregated_run_results= ExperimentDataManager.aggregate_calls_to_run_results(self.calls),
+            calls=[]
         )
         
-        # Save run.json
+        # Save run data
         run_file = self.run_folder_path / "run.json"
         with open(run_file, 'w') as f:
             json.dump(ExperimentDataManager.to_dict(run_data), f, indent=2)
         
-        print(f"\nRun completed!")
-        print(f"Results saved to: {self.run_folder_path}")
-        
-        # Print summary
-        results = aggregated_results
-        print(f"Exact Match: {results.avg_is_exact_match:.3f}")
-        print(f"F1 Score: {results.avg_f1:.3f}")
-        print(f"Precision: {results.avg_precision:.3f}")
-        print(f"Recall: {results.avg_recall:.3f}")
-        print(f"GT All in Pred: {results.avg_correct:.3f}")
-        print(f"Avg Time: {results.avg_execution_time:.2f}s")
-        print(f"Avg Tokens: {results.avg_tokens_used:.0f}")
         return run_data 

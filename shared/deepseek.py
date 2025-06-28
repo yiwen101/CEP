@@ -9,16 +9,18 @@ import random
 import logging
 from typing import Dict, List, Tuple, Optional
 from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv()
 
 logger = logging.getLogger(__name__)
-API_KEY = os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
-class LLMClient:
+class DeepSeekClient:
     """Shared LLM client for making OpenAI API calls with retry logic"""
     
     def __init__(self, model: str = "gpt-3.5-turbo"):
-        self.client = OpenAI(api_key=API_KEY)
-        self.model = model
+        self.client = OpenAI(api_key=API_KEY, base_url="https://api.deepseek.com")
+        self.model = 'deepseek-reasoner'
     
     def call_with_history(self, messages: List[Dict[str, str]], model: str, max_tokens: int = 2000, 
                          max_retries: int = 10, base_delay: float = 1.0) -> Tuple[str, int, float]:
@@ -45,13 +47,12 @@ class LLMClient:
                     max_completion_tokens=max_tokens
                 )
                 execution_time = time.time() - start_time
-                
+                reasoning_content = response.choices[0].message.reasoning_content
                 content = response.choices[0].message.content
                 tokens_used = response.usage.completion_tokens
-                #(response.usage)
                 reason_token = response.usage.completion_tokens_details.reasoning_tokens
                 
-                return content, tokens_used, reason_token, execution_time
+                return reasoning_content, content, tokens_used, reason_token, execution_time
                 
             except Exception as e:
                 if attempt == max_retries - 1:  # Last attempt
@@ -62,45 +63,3 @@ class LLMClient:
                 delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
                 logger.warning(f"API call failed (attempt {attempt + 1}/{max_retries}), retrying in {delay:.2f}s: {e}")
                 time.sleep(delay)
-    
-
-    def evaluate_mcq_correctness(self, choices: str, answer: str, predicted_answer: str) -> bool:
-        """
-        Evaluate correctness of a choice question
-        """
-        messages = [
-            {"role": "user", "content": f"""
-            You are a helpful assistant that evaluates the correctness of a choice question.
-            Choices: {choices}
-            Answer: {answer}
-            Predicted Answer: {predicted_answer}
-            If the predicted answer is correct, respond with "correct" else respond with "wrong". Respond with only "correct" or "wrong".
-            """}
-        ]
-        
-        response, _, _, _ = self.call_with_history(messages, max_tokens=10, temperature=0.0)
-        return response.strip().lower() == "correct" 
-
-
-    def evaluate_correctness(self, question: str, gold_answer: str, predicted_answer: str) -> bool:
-        """
-        Evaluate correctness using LLM with simple prompt
-        
-        Args:
-            question: The question being answered
-            gold_answer: The correct answer
-            predicted_answer: The model's predicted answer
-            
-        Returns:
-            True if the answer is correct, False otherwise
-        """
-        messages = [
-            {"role": "user", "content": f"""Question: {question}
-Gold Answer: {gold_answer}
-Predicted Answer: {predicted_answer}
-
-Is the predicted answer correct? Respond with only "correct" or "wrong"."""}
-        ]
-        
-        response, _, _, _ = self.call_with_history(messages, max_tokens=10, temperature=0.0)
-        return response.strip().lower() == "correct" 

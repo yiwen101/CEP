@@ -5,7 +5,7 @@ Experiment framework for running CEP experiments across multiple datasets and mo
 import os
 import json
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Callable, Optional
+from typing import List, Dict, Any, Callable, Optional, Tuple
 from pathlib import Path
 from dataclasses import asdict
 
@@ -35,7 +35,7 @@ class CallBuilder(ABC):
     """Abstract interface for call builders"""
     
     @abstractmethod
-    def build_calls(self, model: str, domain: str, with_cot: bool) -> Dict[str, Call]:
+    def build_calls(self, model: str, domain: str, with_cot: bool) -> List[Tuple[str, Call]]:
         """Build a map of method names to call functions for a given model and domain"""
         pass
 
@@ -129,7 +129,7 @@ class Experiment:
                 
                 model_results = {}
                 
-                for method_name, call_func in calls.items():
+                for method_name, call_func in calls:
                     print(f"  Running {method_name}...")
                     
                     try:

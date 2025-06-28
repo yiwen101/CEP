@@ -11,11 +11,11 @@ def main():
     
     # Run experiment with default settings
     results = run_math_experiment(
-        models=["gpt-4o-mini"],
-        max_samples=30,
+        models=["gpt-4o-mini","o1-mini", "o3-mini", "o4-mini"],
+        max_samples=50,
         output_dir="results",
         with_cot=True,
-        custom_id="static_vs_dynamic_token_budget_4o-mini"
+        custom_id="mix_token_step_budget"
     )
     
     print("Experiment completed!")

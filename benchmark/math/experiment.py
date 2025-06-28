@@ -52,14 +52,14 @@ def run_math_experiment(
     
     dataset = MathDataset()
     call_builder = MathCallBuilder()
-    
+    timestamp = datetime.now().strftime("%d_%H%M%S")
     experiment = Experiment(
         dataset=dataset,
         call_builder=call_builder,
         output_dir=output_dir,
         with_cot=with_cot,
         evaluator=MathEvaluator(),
-        custom_id=custom_id
+        custom_id=custom_id + "_" + timestamp
     )
     
     return experiment.run(domains=domains, models=models, max_samples=max_samples)
